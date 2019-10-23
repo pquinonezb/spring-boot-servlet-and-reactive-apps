@@ -1,0 +1,65 @@
+buildscript {
+  ext {
+    springBootVersion = '2.0.0.RELEASE'
+  }
+  repositories {
+   maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+
+    mavenCentral()
+  }
+  dependencies {
+    classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.22.1"
+
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: 'com.palantir.docker'
+
+group = 'com.amx.infra'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+bootJar {
+    baseName = 'spring-boot-sync-consumer-service'
+    version =  '0.1.0'
+}
+
+task unpack(type: Copy) {
+    dependsOn bootJar
+    from(zipTree(tasks.bootJar.outputs.files.singleFile))
+    into("build/dependency")
+}
+
+docker {
+    name "${project.group}/${bootJar.baseName}"
+    copySpec.from(tasks.unpack.outputs).into("dependency")
+    buildArgs(['DEPENDENCY': "dependency"])
+}
+
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile('org.springframework.boot:spring-boot-starter-web')
+  compile('org.springframework.boot:spring-boot-starter-actuator')
+  compile('io.micrometer:micrometer-registry-prometheus')
+}
+
+bootRun {
+  jvmArgs = [
+    "-Xmx512m",
+    "-Xmx512m",
+    "-Djava.net.preferIPv4Stack=true",
+    "-Djava.net.preferIPv6Addresses=false",
+    "-Dspring.output.ansi.enabled=ALWAYS"
+  ]
+}
